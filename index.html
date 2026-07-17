@@ -1,0 +1,904 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>お買い物メモ</title>
+<meta name="theme-color" content="#d94f70">
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="icon" type="image/png" href="icon-192.png">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="default">
+<meta name="apple-mobile-web-app-title" content="お買い物メモ">
+<style>
+  /* =====================================================
+     テーマ変数
+     ===================================================== */
+  :root {
+    --main: #d94f70;
+    --main-light: #e88a7a;
+    --bg: #faf6f7;
+    --card: #ffffff;
+    --text: #3a3038;
+    --sub: #9b8e95;
+    --line: #f0e4e8;
+    --accent-bg: #fbe9ee;   /* 薄ピンク（選択・タグ・ホバー） */
+    --danger: #c0392b;
+    --danger-bg: #fdecea;
+  }
+  * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
+  body {
+    font-family: "Hiragino Kaku Gothic ProN", "Yu Gothic UI", "Meiryo", sans-serif;
+    background: var(--bg);
+    color: var(--text);
+    max-width: 520px;
+    margin: 0 auto;
+    padding-bottom: 40px;
+  }
+
+  /* =====================================================
+     ヘッダー
+     ===================================================== */
+  header {
+    background: linear-gradient(135deg, var(--main-light), var(--main));
+    color: #fff;
+    padding: 14px 16px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    border-radius: 0 0 16px 16px;
+    box-shadow: 0 2px 8px rgba(217,79,112,.25);
+  }
+  header img { width: 32px; height: 32px; object-fit: contain; }
+  header h1 { font-size: 1.15rem; letter-spacing: .05em; }
+
+  /* =====================================================
+     入力フォーム
+     ===================================================== */
+  .section {
+    background: var(--card);
+    margin: 12px 12px 0;
+    padding: 14px;
+    border-radius: 14px;
+    box-shadow: 0 1px 4px rgba(0,0,0,.06);
+  }
+  .field { margin-bottom: 10px; }
+  .field label { display: block; font-size: .78rem; color: var(--sub); margin-bottom: 3px; font-weight: 600; }
+  .field input {
+    width: 100%;
+    padding: 10px;
+    font-size: 1rem;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    background: #fdfbfc;
+  }
+  .field input:focus { outline: none; border-color: var(--main); background: #fff; }
+  #amount { text-align: right; font-size: 1.15rem; font-weight: 600; }
+  .row2 { display: flex; gap: 10px; }
+  .row2 .field { flex: 1; }
+
+  button {
+    font-family: inherit;
+    border: none;
+    border-radius: 10px;
+    padding: 12px;
+    font-size: 1rem;
+    font-weight: 700;
+    cursor: pointer;
+  }
+  .btn-row { display: flex; gap: 8px; margin-top: 4px; }
+  #addBtn {
+    flex: 1;
+    background: linear-gradient(135deg, var(--main-light), var(--main));
+    color: #fff;
+    box-shadow: 0 2px 6px rgba(217,79,112,.3);
+  }
+  #addBtn:active { transform: scale(.98); }
+  #cancelBtn { background: #eee; color: var(--sub); display: none; padding: 12px 18px; }
+
+  /* =====================================================
+     履歴ドロップダウン（内訳・メモ・お財布 共通）
+     ===================================================== */
+  .suggest-wrap { position: relative; }
+  .suggest-box {
+    position: absolute;
+    top: 100%; left: 0; right: 0;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    margin-top: 3px;
+    box-shadow: 0 4px 14px rgba(0,0,0,.15);
+    max-height: 180px;
+    overflow-y: auto;
+    z-index: 5;
+    display: none;
+  }
+  .suggest-box.show { display: block; }
+  .suggest-item {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    padding: 6px 6px 6px 12px;
+    font-size: .92rem;
+    border-bottom: 1px solid var(--line);
+    cursor: pointer;
+  }
+  .suggest-item:last-child { border-bottom: none; }
+  .suggest-item:hover, .suggest-item:active { background: var(--accent-bg); }
+  .suggest-item .s-text { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .suggest-item .s-del {
+    flex: none;
+    width: 30px; height: 30px;
+    border-radius: 50%;
+    background: none;
+    color: #c9b6be;
+    font-size: .8rem;
+    padding: 0;
+  }
+  .suggest-item .s-del:hover, .suggest-item .s-del:active { background: var(--danger-bg); color: var(--danger); }
+
+  /* =====================================================
+     月ナビ・月合計
+     ===================================================== */
+  .month-nav {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin: 14px 16px 0;
+  }
+  .month-nav button {
+    background: #fff;
+    border: 1.5px solid var(--line);
+    color: var(--main);
+    width: 38px; height: 38px;
+    border-radius: 50%;
+    font-size: 1rem;
+    padding: 0;
+  }
+  .month-nav .label { font-weight: 700; font-size: 1.05rem; }
+  .month-total {
+    text-align: center;
+    margin: 6px 16px 0;
+    font-size: .85rem;
+    color: var(--sub);
+  }
+  .month-total b { color: var(--main); font-size: 1.15rem; margin-left: 4px; }
+
+  /* =====================================================
+     フィルタバー
+     ===================================================== */
+  .filter-bar {
+    display: flex;
+    gap: 6px;
+    align-items: center;
+    margin: 10px 12px 0;
+  }
+  .filter-bar select {
+    flex: 1;
+    min-width: 0;
+    font-family: inherit;
+    font-size: .82rem;
+    padding: 8px 4px;
+    border: 1.5px solid var(--line);
+    border-radius: 10px;
+    background: #fff;
+    color: var(--text);
+  }
+  .filter-bar select:focus { outline: none; border-color: var(--main); }
+  .filter-bar select.active {
+    border-color: var(--main);
+    background: var(--accent-bg);
+    color: var(--main);
+    font-weight: 700;
+  }
+  .filter-bar #filterClear {
+    background: #fff;
+    border: 1.5px solid var(--line);
+    color: var(--sub);
+    width: 34px; height: 34px;
+    border-radius: 50%;
+    font-size: .85rem;
+    padding: 0;
+    flex: none;
+  }
+  .filter-total {
+    text-align: center;
+    margin: 6px 16px 0;
+    font-size: .8rem;
+    color: var(--main);
+    font-weight: 600;
+  }
+
+  /* =====================================================
+     明細一覧
+     ===================================================== */
+  #list { margin: 8px 12px 0; }
+  .day-group { margin-top: 12px; }
+  .day-head {
+    font-size: .8rem;
+    font-weight: 700;
+    color: var(--sub);
+    padding: 0 4px 4px;
+    display: flex;
+    justify-content: space-between;
+  }
+  .card {
+    background: var(--card);
+    border-radius: 12px;
+    padding: 10px 12px;
+    margin-bottom: 6px;
+    box-shadow: 0 1px 3px rgba(0,0,0,.05);
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: 8px;
+    user-select: none;
+  }
+  .card .info { flex: 1; min-width: 0; }
+  .card .breakdown { font-weight: 700; font-size: .95rem; }
+  .card .meta { font-size: .78rem; color: var(--sub); margin-top: 2px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .card .wallet-tag {
+    display: inline-block;
+    background: var(--accent-bg);
+    color: var(--main);
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: .72rem;
+    font-weight: 600;
+    margin-right: 4px;
+  }
+  .card .amt { font-size: 1.05rem; font-weight: 700; white-space: nowrap; }
+  .empty { text-align: center; color: var(--sub); padding: 30px 0; font-size: .9rem; }
+
+  /* =====================================================
+     長押しメニュー（編集・削除）
+     ===================================================== */
+  #menuOverlay {
+    position: fixed; inset: 0;
+    background: rgba(0,0,0,.35);
+    display: none;
+    align-items: flex-end;
+    justify-content: center;
+    z-index: 10;
+  }
+  #menuOverlay.show { display: flex; }
+  #menuBox {
+    background: #fff;
+    width: 100%;
+    max-width: 520px;
+    border-radius: 16px 16px 0 0;
+    padding: 16px;
+  }
+  #menuBox .target { font-size: .85rem; color: var(--sub); text-align: center; margin-bottom: 12px; }
+  #menuBox button { width: 100%; margin-bottom: 8px; padding: 13px; }
+  #menuEdit { background: var(--accent-bg); color: var(--main); }
+  #menuDelete { background: var(--danger-bg); color: var(--danger); }
+  #menuClose { background: #f2f2f2; color: var(--sub); }
+
+  /* =====================================================
+     CSV・トースト
+     ===================================================== */
+  .csv-row { display: flex; gap: 8px; margin: 18px 12px 0; }
+  .csv-row button {
+    flex: 1;
+    background: #fff;
+    border: 1.5px solid var(--line);
+    color: var(--sub);
+    font-size: .85rem;
+    padding: 10px;
+  }
+  #toast {
+    position: fixed;
+    bottom: 20px; left: 50%;
+    transform: translateX(-50%);
+    background: rgba(58,48,56,.9);
+    color: #fff;
+    padding: 10px 20px;
+    border-radius: 20px;
+    font-size: .85rem;
+    opacity: 0;
+    transition: opacity .3s;
+    pointer-events: none;
+    white-space: nowrap;
+    z-index: 20;
+  }
+  #toast.show { opacity: 1; }
+</style>
+</head>
+<body>
+
+<header>
+  <img src="icon.png" alt="">
+  <h1>お買い物メモ</h1>
+</header>
+
+<!-- 入力フォーム -->
+<div class="section">
+  <div class="row2">
+    <div class="field">
+      <label>日にち</label>
+      <input type="date" id="date">
+    </div>
+    <div class="field">
+      <label>金額</label>
+      <input type="text" id="amount" inputmode="numeric" placeholder="0">
+    </div>
+  </div>
+  <div class="field">
+    <label>内訳</label>
+    <div class="suggest-wrap">
+      <input type="text" id="breakdown" placeholder="例：食費" autocomplete="off">
+      <div class="suggest-box" id="breakdownSuggest"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>メモ</label>
+    <div class="suggest-wrap">
+      <input type="text" id="memo" placeholder="例：スーパーで買い物" autocomplete="off">
+      <div class="suggest-box" id="memoSuggest"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>お財布</label>
+    <div class="suggest-wrap">
+      <input type="text" id="wallet" placeholder="例：現金" autocomplete="off">
+      <div class="suggest-box" id="walletSuggest"></div>
+    </div>
+  </div>
+  <div class="btn-row">
+    <button id="addBtn">追加する</button>
+    <button id="cancelBtn">取消</button>
+  </div>
+</div>
+
+<!-- 月ナビ・月合計 -->
+<div class="month-nav">
+  <button id="prevMonth">◀</button>
+  <span class="label" id="monthLabel"></span>
+  <button id="nextMonth">▶</button>
+</div>
+<div class="month-total">月合計<b id="monthTotal">¥0</b></div>
+
+<!-- フィルタ -->
+<div class="filter-bar">
+  <select id="filterDay"><option value="">日にち：全て</option></select>
+  <select id="filterBreakdown"><option value="">内訳：全て</option></select>
+  <select id="filterWallet"><option value="">お財布：全て</option></select>
+  <button id="filterClear" title="フィルタ解除">✕</button>
+</div>
+<div class="filter-total" id="filterTotal" style="display:none"></div>
+
+<!-- 明細一覧 -->
+<div id="list"></div>
+
+<!-- CSV -->
+<div class="csv-row">
+  <button id="csvExport">CSV出力</button>
+  <button id="csvImport">CSV取込</button>
+  <input type="file" id="csvFile" accept=".csv" hidden>
+</div>
+
+<!-- 長押しメニュー -->
+<div id="menuOverlay">
+  <div id="menuBox">
+    <div class="target" id="menuTarget"></div>
+    <button id="menuEdit">編集する</button>
+    <button id="menuDelete">削除する</button>
+    <button id="menuClose">閉じる</button>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+'use strict';
+
+/* =====================================================
+   設定（変更・拡張はまずここを見る）
+   ===================================================== */
+const APP_VERSION = '1.1.0';   // PWA対応。更新時は sw.js の CACHE も上げること
+
+const STORAGE_KEYS = {
+  records: 'shopping_memo_records',        // 記録本体: [{id, date, amount, breakdown, memo, wallet}]
+  hidden:  'shopping_memo_hidden_history'  // 履歴の非表示指定: {breakdown:[], memo:[], wallet:[]}
+};
+
+// 履歴付きテキスト項目の定義。
+// 項目を増やす場合: ここに1行追加 + フォームHTML（.field）を1ブロック追加。
+// filter:true にするとフィルタバーの select（id: filter+Key の形式）も必要。
+const HISTORY_FIELDS = [
+  { key: 'breakdown', label: '内訳',   filter: true  },
+  { key: 'memo',      label: 'メモ',   filter: false },
+  { key: 'wallet',    label: 'お財布', filter: true  }
+];
+
+const HISTORY_MAX   = 30;   // 履歴として保持する候補数
+const SUGGEST_MAX   = 10;   // ドロップダウンに一度に出す候補数
+const LONG_PRESS_MS = 600;  // 明細長押しの判定時間
+
+// CSV列（出力順・取込順）。日にち・金額の後に HISTORY_FIELDS の順で並ぶ
+const CSV_HEADER = ['日にち', '金額', ...HISTORY_FIELDS.map(f => f.label)];
+
+/* =====================================================
+   状態
+   ===================================================== */
+let records = [];     // 記録本体（保存形式そのまま）
+let hidden = {};      // 履歴の非表示指定 {key: [値,...]}
+const history = {};   // 履歴候補キャッシュ {key: [値,...]}（recordsから都度再計算）
+let editingId = null; // 編集中の記録id（null=新規追加モード）
+let menuId = null;    // 長押しメニューの対象id
+let viewYM = '';      // 表示中の月 'YYYY-MM'
+
+/* =====================================================
+   ユーティリティ
+   ===================================================== */
+const $ = id => document.getElementById(id);
+const fmt = n => '¥' + Number(n).toLocaleString('ja-JP');
+const WEEK = ['日', '月', '火', '水', '木', '金', '土'];
+
+function todayStr() {
+  const d = new Date();
+  return d.getFullYear() + '-' + String(d.getMonth() + 1).padStart(2, '0') + '-' + String(d.getDate()).padStart(2, '0');
+}
+
+function dayLabel(dateStr) {
+  const [y, m, d] = dateStr.split('-').map(Number);
+  return `${m}/${d}（${WEEK[new Date(y, m - 1, d).getDay()]}）`;
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+function toast(msg) {
+  const t = $('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  clearTimeout(t._timer);
+  t._timer = setTimeout(() => t.classList.remove('show'), 2000);
+}
+
+/* =====================================================
+   保存・読込
+   ===================================================== */
+function readJson(key, fallback) {
+  try { return JSON.parse(localStorage.getItem(key)) ?? fallback; }
+  catch (e) { return fallback; }
+}
+
+function loadAll() {
+  records = readJson(STORAGE_KEYS.records, []);
+  const h = readJson(STORAGE_KEYS.hidden, {});
+  hidden = {};
+  for (const f of HISTORY_FIELDS) hidden[f.key] = h[f.key] || [];
+}
+
+function saveRecords() {
+  localStorage.setItem(STORAGE_KEYS.records, JSON.stringify(records));
+}
+
+function saveHidden() {
+  localStorage.setItem(STORAGE_KEYS.hidden, JSON.stringify(hidden));
+}
+
+/* =====================================================
+   入力履歴（候補の計算とドロップダウン）
+   ===================================================== */
+// recordsから履歴候補を再計算する。新しい記録の値ほど先頭。非表示指定は除く
+function updateHistory() {
+  const sorted = [...records].sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+  for (const f of HISTORY_FIELDS) {
+    const seen = new Set();
+    const opts = [];
+    for (const r of sorted) {
+      const v = (r[f.key] || '').trim();
+      if (v && !seen.has(v) && !hidden[f.key].includes(v)) { seen.add(v); opts.push(v); }
+      if (opts.length >= HISTORY_MAX) break;
+    }
+    history[f.key] = opts;
+  }
+}
+
+// フォーカス／入力で候補を表示し、タップで入力欄に反映。✕で履歴から削除
+function setupSuggest(field) {
+  const input = $(field.key), box = $(field.key + 'Suggest');
+
+  function show() {
+    const q = input.value.trim();
+    const items = history[field.key].filter(v => !q || v.includes(q)).slice(0, SUGGEST_MAX);
+    if (!items.length) { box.classList.remove('show'); return; }
+    box.innerHTML = items.map(v => `
+      <div class="suggest-item" data-v="${escapeHtml(v)}">
+        <span class="s-text">${escapeHtml(v)}</span>
+        <button class="s-del" title="履歴から削除">✕</button>
+      </div>`).join('');
+    box.classList.add('show');
+  }
+
+  input.addEventListener('focus', show);
+  input.addEventListener('input', show);
+  input.addEventListener('blur', () => setTimeout(() => box.classList.remove('show'), 200));
+
+  box.addEventListener('pointerdown', e => {
+    const item = e.target.closest('.suggest-item');
+    if (!item) return;
+    e.preventDefault();               // blurより先に処理を確定させる
+    const v = item.dataset.v;
+    if (e.target.closest('.s-del')) {
+      // 履歴からのみ削除（記録本体はそのまま）。同じ値を再入力して記録すると復活する
+      if (confirm(`「${v}」を履歴から削除しますか？\n（記録済みのデータは消えません）`)) {
+        hidden[field.key].push(v);
+        saveHidden();
+        render();
+        show();                       // ドロップダウンを開いたまま更新
+      }
+      return;
+    }
+    input.value = v;
+    box.classList.remove('show');
+  });
+}
+
+// 記録された値は非表示指定を解除して履歴に復活させる
+function unhideValues(rec) {
+  let changed = false;
+  for (const f of HISTORY_FIELDS) {
+    const i = hidden[f.key].indexOf(rec[f.key]);
+    if (i >= 0) { hidden[f.key].splice(i, 1); changed = true; }
+  }
+  if (changed) saveHidden();
+}
+
+/* =====================================================
+   入力フォーム
+   ===================================================== */
+// 金額欄: 数字以外を除去してカンマ区切りで表示
+$('amount').addEventListener('input', e => {
+  const digits = e.target.value.replace(/[^0-9]/g, '');
+  e.target.value = digits ? Number(digits).toLocaleString('ja-JP') : '';
+});
+
+function readForm() {
+  const rec = {
+    id: editingId ?? Date.now(),
+    date: $('date').value,
+    amount: Number($('amount').value.replace(/,/g, ''))
+  };
+  for (const f of HISTORY_FIELDS) rec[f.key] = $(f.key).value.trim();
+  return rec;
+}
+
+function fillForm(rec) {
+  $('date').value = rec.date;
+  $('amount').value = rec.amount.toLocaleString('ja-JP');
+  for (const f of HISTORY_FIELDS) $(f.key).value = rec[f.key];
+}
+
+function resetForm() {
+  editingId = null;
+  $('date').value = todayStr();
+  $('amount').value = '';
+  for (const f of HISTORY_FIELDS) $(f.key).value = '';
+  $('addBtn').textContent = '追加する';
+  $('cancelBtn').style.display = 'none';
+}
+
+function startEdit(rec) {
+  editingId = rec.id;
+  fillForm(rec);
+  $('addBtn').textContent = '更新する';
+  $('cancelBtn').style.display = 'block';
+  window.scrollTo({ top: 0, behavior: 'smooth' });
+}
+
+$('addBtn').addEventListener('click', () => {
+  const rec = readForm();
+  if (!rec.date) { toast('日にちを入力してください'); return; }
+  if (!rec.amount) { toast('金額を入力してください'); return; }
+
+  if (editingId !== null) {
+    const i = records.findIndex(r => r.id === editingId);
+    if (i >= 0) records[i] = rec;
+    toast('更新しました');
+  } else {
+    records.push(rec);
+    toast('追加しました');
+  }
+  saveRecords();
+  unhideValues(rec);
+  viewYM = rec.date.slice(0, 7);   // 追加・更新した月を表示する
+  resetForm();
+  render();
+});
+
+$('cancelBtn').addEventListener('click', resetForm);
+
+/* =====================================================
+   月ナビ
+   ===================================================== */
+function shiftMonth(delta) {
+  let [y, m] = viewYM.split('-').map(Number);
+  m += delta;
+  if (m < 1) { m = 12; y--; }
+  if (m > 12) { m = 1; y++; }
+  viewYM = y + '-' + String(m).padStart(2, '0');
+  render();
+}
+$('prevMonth').addEventListener('click', () => shiftMonth(-1));
+$('nextMonth').addEventListener('click', () => shiftMonth(1));
+
+/* =====================================================
+   フィルタ
+   ===================================================== */
+const filterIdOf = key => 'filter' + key.charAt(0).toUpperCase() + key.slice(1);
+const FILTER_IDS = ['filterDay', ...HISTORY_FIELDS.filter(f => f.filter).map(f => filterIdOf(f.key))];
+
+// selectの選択肢を入れ替える。選択中の値が候補に残っていれば維持、なければ解除
+function fillFilter(sel, values, labelAll, labelOf) {
+  const prev = sel.value;
+  sel.innerHTML = `<option value="">${labelAll}</option>` +
+    values.map(v => `<option value="${escapeHtml(v)}">${escapeHtml(labelOf ? labelOf(v) : v)}</option>`).join('');
+  sel.value = values.includes(prev) ? prev : '';
+}
+
+function updateFilters(monthRecs) {
+  const days = [...new Set(monthRecs.map(r => r.date))];
+  fillFilter($('filterDay'), days, '日にち：全て', dayLabel);
+  for (const f of HISTORY_FIELDS) {
+    if (f.filter) fillFilter($(filterIdOf(f.key)), history[f.key], `${f.label}：全て`);
+  }
+  for (const id of FILTER_IDS) {
+    $(id).classList.toggle('active', $(id).value !== '');
+  }
+}
+
+function applyFilters(monthRecs) {
+  let shown = monthRecs;
+  const day = $('filterDay').value;
+  if (day) shown = shown.filter(r => r.date === day);
+  for (const f of HISTORY_FIELDS) {
+    if (!f.filter) continue;
+    const v = $(filterIdOf(f.key)).value;
+    if (v) shown = shown.filter(r => r[f.key] === v);
+  }
+  return shown;
+}
+
+FILTER_IDS.forEach(id => $(id).addEventListener('change', render));
+$('filterClear').addEventListener('click', () => {
+  FILTER_IDS.forEach(id => $(id).value = '');
+  render();
+});
+
+/* =====================================================
+   明細一覧の描画
+   ===================================================== */
+function recordCard(r) {
+  const metaParts = [];
+  if (r.wallet) metaParts.push(`<span class="wallet-tag">${escapeHtml(r.wallet)}</span>`);
+  if (r.memo) metaParts.push(escapeHtml(r.memo));
+  return `
+    <div class="card" data-id="${r.id}">
+      <div class="info">
+        <div class="breakdown">${escapeHtml(r.breakdown) || '（内訳なし）'}</div>
+        ${metaParts.length ? `<div class="meta">${metaParts.join(' ')}</div>` : ''}
+      </div>
+      <div class="amt">${fmt(r.amount)}</div>
+    </div>`;
+}
+
+function render() {
+  const [y, m] = viewYM.split('-');
+  $('monthLabel').textContent = `${y}年${Number(m)}月`;
+
+  const monthRecs = records
+    .filter(r => r.date.startsWith(viewYM))
+    .sort((a, b) => b.date.localeCompare(a.date) || b.id - a.id);
+
+  $('monthTotal').textContent = fmt(monthRecs.reduce((s, r) => s + r.amount, 0));
+
+  updateHistory();
+  updateFilters(monthRecs);
+  const shown = applyFilters(monthRecs);
+
+  // 絞り込み中は件数と小計を表示（月合計はフィルタの影響を受けない）
+  const filtering = shown.length !== monthRecs.length || FILTER_IDS.some(id => $(id).value !== '');
+  const ft = $('filterTotal');
+  ft.style.display = filtering ? 'block' : 'none';
+  if (filtering) {
+    ft.textContent = `絞り込み中：${shown.length}件 ${fmt(shown.reduce((s, r) => s + r.amount, 0))}`;
+  }
+
+  const list = $('list');
+  if (!shown.length) {
+    list.innerHTML = `<div class="empty">${filtering ? '条件に合う記録はありません' : 'この月の記録はありません'}</div>`;
+    return;
+  }
+
+  // 日付ごとにグループ化して日合計を表示
+  const groups = {};
+  for (const r of shown) (groups[r.date] = groups[r.date] || []).push(r);
+
+  let html = '';
+  for (const date of Object.keys(groups)) {
+    const dayTotal = groups[date].reduce((s, r) => s + r.amount, 0);
+    html += `<div class="day-group"><div class="day-head"><span>${dayLabel(date)}</span><span>${fmt(dayTotal)}</span></div>`;
+    html += groups[date].map(recordCard).join('');
+    html += '</div>';
+  }
+  list.innerHTML = html;
+}
+
+/* =====================================================
+   長押し / 右クリックメニュー（編集・削除）
+   ===================================================== */
+let pressTimer = null;
+$('list').addEventListener('pointerdown', e => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  pressTimer = setTimeout(() => openMenu(Number(card.dataset.id)), LONG_PRESS_MS);
+});
+['pointerup', 'pointercancel', 'pointermove'].forEach(ev =>
+  $('list').addEventListener(ev, () => clearTimeout(pressTimer))
+);
+$('list').addEventListener('contextmenu', e => {
+  const card = e.target.closest('.card');
+  if (!card) return;
+  e.preventDefault();
+  openMenu(Number(card.dataset.id));
+});
+
+function openMenu(id) {
+  const r = records.find(r => r.id === id);
+  if (!r) return;
+  menuId = id;
+  $('menuTarget').textContent = `${dayLabel(r.date)} ${r.breakdown || '（内訳なし）'} ${fmt(r.amount)}`;
+  $('menuOverlay').classList.add('show');
+}
+
+function closeMenu() {
+  menuId = null;
+  $('menuOverlay').classList.remove('show');
+}
+$('menuClose').addEventListener('click', closeMenu);
+$('menuOverlay').addEventListener('click', e => { if (e.target === $('menuOverlay')) closeMenu(); });
+
+$('menuEdit').addEventListener('click', () => {
+  const r = records.find(r => r.id === menuId);
+  closeMenu();
+  if (r) startEdit(r);
+});
+
+$('menuDelete').addEventListener('click', () => {
+  const r = records.find(r => r.id === menuId);
+  if (r && confirm(`${dayLabel(r.date)} ${fmt(r.amount)} の記録を削除しますか？`)) {
+    records = records.filter(x => x.id !== menuId);
+    saveRecords();
+    render();
+    toast('削除しました');
+  }
+  closeMenu();
+});
+
+/* =====================================================
+   CSV出力・取込（BOM付きUTF-8 / Excel互換）
+   ===================================================== */
+function recordToRow(r) {
+  return [r.date, r.amount, ...HISTORY_FIELDS.map(f => r[f.key])];
+}
+
+function rowToRecord(row, id) {
+  const date = normalizeDate(row[0]);
+  const amount = Number(String(row[1]).replace(/[,¥￥]/g, ''));
+  if (!date || isNaN(amount)) return null;
+  const rec = { id, date, amount };
+  HISTORY_FIELDS.forEach((f, i) => rec[f.key] = (row[2 + i] || '').trim());
+  return rec;
+}
+
+// 重複判定キー（取込時に同一記録の二重登録を防ぐ）
+const dupKey = r => `${r.date}|${r.amount}|${r.breakdown}`;
+
+$('csvExport').addEventListener('click', () => {
+  if (!records.length) { toast('記録がありません'); return; }
+  const rows = [CSV_HEADER];
+  [...records].sort((a, b) => a.date.localeCompare(b.date) || a.id - b.id)
+    .forEach(r => rows.push(recordToRow(r)));
+  const csv = '﻿' + rows.map(row =>
+    row.map(v => `"${String(v).replace(/"/g, '""')}"`).join(',')
+  ).join('\r\n');
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(new Blob([csv], { type: 'text/csv' }));
+  a.download = `shopping_memo_${todayStr()}.csv`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+  toast('CSVを出力しました');
+});
+
+$('csvImport').addEventListener('click', () => $('csvFile').click());
+$('csvFile').addEventListener('change', e => {
+  const file = e.target.files[0];
+  if (!file) return;
+  const reader = new FileReader();
+  reader.onload = () => {
+    try {
+      const rows = parseCsv(reader.result.replace(/^﻿/, ''));
+      if (!rows.length) throw new Error('empty');
+      const dataRows = /日にち|日付/.test(rows[0][0]) ? rows.slice(1) : rows;
+      const overwrite = confirm('OK：全て置き換え／キャンセル：差分のみ追加');
+      const base = overwrite ? [] : [...records];
+      const keys = new Set(base.map(dupKey));
+      let added = 0;
+      for (const row of dataRows) {
+        if (row.length < 2) continue;
+        const rec = rowToRecord(row, Date.now() + added);
+        if (!rec || keys.has(dupKey(rec))) continue;
+        keys.add(dupKey(rec));
+        base.push(rec);
+        added++;
+      }
+      records = base;
+      saveRecords();
+      render();
+      toast(`${added}件取り込みました`);
+    } catch (err) {
+      toast('CSVの読み込みに失敗しました');
+    }
+    e.target.value = '';
+  };
+  reader.readAsText(file, 'UTF-8');
+});
+
+// 2026/7/1 → 2026-07-01 のように日付表記を揃える
+function normalizeDate(s) {
+  const m = String(s).trim().match(/^(\d{4})[\/\-](\d{1,2})[\/\-](\d{1,2})/);
+  if (!m) return null;
+  return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+}
+
+// 簡易CSVパーサ（ダブルクォート・改行入りセル対応）
+function parseCsv(text) {
+  const rows = [];
+  let row = [], cell = '', inQ = false;
+  for (let i = 0; i < text.length; i++) {
+    const c = text[i];
+    if (inQ) {
+      if (c === '"') {
+        if (text[i + 1] === '"') { cell += '"'; i++; }
+        else inQ = false;
+      } else cell += c;
+    } else if (c === '"') inQ = true;
+    else if (c === ',') { row.push(cell); cell = ''; }
+    else if (c === '\n' || c === '\r') {
+      if (c === '\r' && text[i + 1] === '\n') i++;
+      row.push(cell); cell = '';
+      if (row.some(v => v !== '')) rows.push(row);
+      row = [];
+    } else cell += c;
+  }
+  row.push(cell);
+  if (row.some(v => v !== '')) rows.push(row);
+  return rows;
+}
+
+/* =====================================================
+   初期化
+   ===================================================== */
+loadAll();
+HISTORY_FIELDS.forEach(setupSuggest);
+viewYM = todayStr().slice(0, 7);
+resetForm();
+render();
+
+/* =====================================================
+   PWA: service worker登録（file://直開きでは何もしない）
+   ===================================================== */
+if ("serviceWorker" in navigator && location.protocol.startsWith("http")) {
+  window.addEventListener("load", () => navigator.serviceWorker.register("sw.js").catch(() => {}));
+}
+</script>
+</body>
+</html>
