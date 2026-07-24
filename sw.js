@@ -1,5 +1,5 @@
 /* お買い物メモ PWA service worker. 記録データはブラウザ(localStorage)にあり、ここには含まれない */
-const CACHE = "shopping-memo-v4";   // ← キャッシュ対象ファイルを更新したら必ず上げる (v5, v6…)
+const CACHE = "shopping-memo-v5";   // ← キャッシュ対象ファイルを更新したら必ず上げる (v6, v7…)
 const ASSETS = [
   "./", "./index.html", "./manifest.webmanifest",
   "./icon.png",

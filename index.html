@@ -27,6 +27,10 @@
     --accent-bg: #fbe9ee;   /* 薄ピンク（選択・タグ・ホバー） */
     --danger: #c0392b;
     --danger-bg: #fdecea;
+    --unpaid: #c77700;      /* 未清算バッジ */
+    --unpaid-bg: #fff4e5;
+    --paid: #2e7d32;        /* 清算済バッジ */
+    --paid-bg: #e8f5e9;
   }
   * { box-sizing: border-box; margin: 0; padding: 0; -webkit-tap-highlight-color: transparent; }
   body {
@@ -66,7 +70,7 @@
   }
   .field { margin-bottom: 10px; }
   .field label { display: block; font-size: .78rem; color: var(--sub); margin-bottom: 3px; font-weight: 600; }
-  .field input {
+  .field input[type="text"], .field input[type="date"] {
     width: 100%;
     padding: 10px;
     font-size: 1rem;
@@ -78,6 +82,25 @@
   #amount { text-align: right; font-size: 1.15rem; font-weight: 600; }
   .row2 { display: flex; gap: 10px; }
   .row2 .field { flex: 1; }
+
+  /* お財布 → 立替相手 の横並び */
+  .transfer-row { display: flex; align-items: center; gap: 6px; }
+  .transfer-row .suggest-wrap { flex: 1; min-width: 0; }
+  .transfer-row .arrow { flex: none; color: var(--sub); font-weight: 700; font-size: 1.1rem; }
+
+  /* 支払済チェック */
+  .settle-field label.check-label {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    font-size: .9rem;
+    color: var(--text);
+    font-weight: 600;
+    margin-bottom: 0;
+    cursor: pointer;
+  }
+  .check-label input[type="checkbox"] { width: 20px; height: 20px; accent-color: var(--main); }
+  #settledDateWrap { margin-top: 8px; }
 
   button {
     font-family: inherit;
@@ -99,7 +122,7 @@
   #cancelBtn { background: #eee; color: var(--sub); display: none; padding: 12px 18px; }
 
   /* =====================================================
-     履歴ドロップダウン（内訳・メモ・お財布 共通）
+     履歴ドロップダウン（内訳・メモ・お財布・立替相手 共通）
      ===================================================== */
   .suggest-wrap { position: relative; }
   .suggest-box {
@@ -172,13 +195,14 @@
      ===================================================== */
   .filter-bar {
     display: flex;
+    flex-wrap: wrap;
     gap: 6px;
     align-items: center;
     margin: 10px 12px 0;
   }
   .filter-bar select {
-    flex: 1;
-    min-width: 0;
+    flex: 1 1 28%;
+    min-width: 92px;
     font-family: inherit;
     font-size: .82rem;
     padding: 8px 4px;
@@ -250,6 +274,16 @@
     font-weight: 600;
     margin-right: 4px;
   }
+  .card .settle-tag {
+    display: inline-block;
+    border-radius: 6px;
+    padding: 1px 6px;
+    font-size: .72rem;
+    font-weight: 700;
+    margin-right: 4px;
+  }
+  .card .settle-tag.unpaid { background: var(--unpaid-bg); color: var(--unpaid); }
+  .card .settle-tag.paid   { background: var(--paid-bg);   color: var(--paid); }
   .card .amt { font-size: 1.05rem; font-weight: 700; white-space: nowrap; }
   .empty { text-align: center; color: var(--sub); padding: 30px 0; font-size: .9rem; }
 
@@ -274,6 +308,7 @@
   }
   #menuBox .target { font-size: .85rem; color: var(--sub); text-align: center; margin-bottom: 12px; }
   #menuBox button { width: 100%; margin-bottom: 8px; padding: 13px; }
+  #menuSettle { background: var(--paid-bg); color: var(--paid); }
   #menuEdit { background: var(--accent-bg); color: var(--main); }
   #menuDelete { background: var(--danger-bg); color: var(--danger); }
   #menuClose { background: #f2f2f2; color: var(--sub); }
@@ -315,7 +350,7 @@
   <h1>お買い物メモ</h1>
 </header>
 
-<!-- 入力フォーム（日にち・金額は固定。履歴付き項目は #historyFields に自動生成） -->
+<!-- 入力フォーム -->
 <div class="section">
   <div class="row2">
     <div class="field">
@@ -327,7 +362,42 @@
       <input type="text" id="amount" inputmode="numeric" placeholder="0">
     </div>
   </div>
-  <div id="historyFields"></div>
+  <div class="field">
+    <label>内訳</label>
+    <div class="suggest-wrap">
+      <input type="text" id="breakdown" placeholder="例：食費" autocomplete="off">
+      <div class="suggest-box" id="breakdownSuggest"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>メモ</label>
+    <div class="suggest-wrap">
+      <input type="text" id="memo" placeholder="例：スーパーで買い物" autocomplete="off">
+      <div class="suggest-box" id="memoSuggest"></div>
+    </div>
+  </div>
+  <div class="field">
+    <label>お財布 → 立替相手</label>
+    <div class="transfer-row">
+      <div class="suggest-wrap">
+        <input type="text" id="wallet" placeholder="お財布" autocomplete="off">
+        <div class="suggest-box" id="walletSuggest"></div>
+      </div>
+      <span class="arrow">→</span>
+      <div class="suggest-wrap">
+        <input type="text" id="payee" placeholder="立替相手（任意）" autocomplete="off">
+        <div class="suggest-box" id="payeeSuggest"></div>
+      </div>
+    </div>
+  </div>
+  <div class="field settle-field">
+    <label class="check-label">
+      <input type="checkbox" id="settled"> 支払済（清算した）
+    </label>
+    <div id="settledDateWrap" style="display:none">
+      <input type="date" id="settledDate">
+    </div>
+  </div>
   <div class="btn-row">
     <button id="addBtn">追加する</button>
     <button id="cancelBtn">取消</button>
@@ -360,6 +430,7 @@
 <div id="menuOverlay">
   <div id="menuBox">
     <div class="target" id="menuTarget"></div>
+    <button id="menuSettle">清算済みにする</button>
     <button id="menuEdit">編集する</button>
     <button id="menuDelete">削除する</button>
     <button id="menuClose">閉じる</button>
@@ -374,19 +445,23 @@
 /* =====================================================
    設定 — 仕様の単一の情報源。項目の追加・変更はまずここ
    ===================================================== */
-const APP_VERSION = '1.2.0';   // 更新時は sw.js の CACHE も必ず上げる
+const APP_VERSION = '1.3.0';   // 更新時は sw.js の CACHE も必ず上げる
 
 const STORAGE_KEYS = {
-  records: 'shopping_memo_records',        // 記録本体: [{id, date, amount, breakdown, memo, wallet}]
-  hidden:  'shopping_memo_hidden_history'  // 履歴の非表示指定: {breakdown:[], memo:[], wallet:[]}
+  records: 'shopping_memo_records',        // 記録本体
+  hidden:  'shopping_memo_hidden_history'  // 履歴の非表示指定
 };
+// 記録の形: {id, date, amount, breakdown, memo, wallet, payee, settled, settledDate}
+//   payee=立替相手（空なら通常の支出）, settled=清算済フラグ, settledDate=清算日'YYYY-MM-DD'
 
-// 履歴付きテキスト項目。この配列がフォーム欄・履歴・フィルタ・CSV列すべての源。
-// 項目を増やすときは、原則ここに1行足すだけでUIとデータが揃う（filter:true でフィルタにも追加）。
+// 履歴付きテキスト項目。この配列が入力欄・履歴・フィルタ・CSV列すべての源。
+// 項目を増やすときは、原則ここに1行足す（filter:true でフィルタにも追加）。
+// ※フォームのHTMLは各 key の input#key と div#keySuggest を用意する取り決め。
 const HISTORY_FIELDS = [
-  { key: 'breakdown', label: '内訳',   filter: true,  placeholder: '例：食費' },
-  { key: 'memo',      label: 'メモ',   filter: false, placeholder: '例：スーパーで買い物' },
-  { key: 'wallet',    label: 'お財布', filter: true,  placeholder: '例：現金' }
+  { key: 'breakdown', label: '内訳',   filter: true  },
+  { key: 'memo',      label: 'メモ',   filter: false },
+  { key: 'wallet',    label: 'お財布', filter: true  },
+  { key: 'payee',     label: '立替相手', filter: true }
 ];
 
 const HISTORY_MAX    = 30;   // 履歴として保持する候補数
@@ -394,13 +469,14 @@ const SUGGEST_MAX    = 10;   // ドロップダウンに一度に出す候補数
 const LONG_PRESS_MS  = 600;  // 明細長押しの判定時間
 const GHOST_GUARD_MS = 500;  // 候補タップ直後に「追加する」へ貫通するゴーストクリックを無視する時間
 
-// CSV列（出力・取込の順）。日にち・金額の後に HISTORY_FIELDS が並ぶ
-const CSV_HEADER = ['日にち', '金額', ...HISTORY_FIELDS.map(f => f.label)];
+// CSV列（出力・取込の順）。日にち・金額 → HISTORY_FIELDS → 支払済・清算日
+const CSV_HEADER = ['日にち', '金額', ...HISTORY_FIELDS.map(f => f.label), '支払済', '清算日'];
 
-// フィルタ対象のキーと、その select 要素id
+// フィルタ対象の履歴項目と、その select 要素id
 const FILTER_FIELDS = HISTORY_FIELDS.filter(f => f.filter);
 const filterIdOf = key => 'filter' + key.charAt(0).toUpperCase() + key.slice(1);
-const FILTER_IDS = ['filterDay', ...FILTER_FIELDS.map(f => filterIdOf(f.key))];
+// 日にち・各履歴フィルタ・清算状況（履歴項目ではない特別枠）
+const FILTER_IDS = ['filterDay', ...FILTER_FIELDS.map(f => filterIdOf(f.key)), 'filterSettled'];
 
 /* =====================================================
    状態
@@ -429,6 +505,12 @@ function todayStr() {
 function dayLabel(dateStr) {
   const [y, m, d] = dateStr.split('-').map(Number);
   return `${m}/${d}（${WEEK[new Date(y, m - 1, d).getDay()]}）`;
+}
+
+// 'YYYY-MM-DD' → 'M/D'
+function shortDate(dateStr) {
+  const [, m, d] = dateStr.split('-').map(Number);
+  return `${m}/${d}`;
 }
 
 function escapeHtml(s) {
@@ -462,25 +544,21 @@ function saveRecords() { localStorage.setItem(STORAGE_KEYS.records, JSON.stringi
 function saveHidden()  { localStorage.setItem(STORAGE_KEYS.hidden, JSON.stringify(hidden)); }
 
 /* =====================================================
-   DOM構築（設定から入力欄とフィルタを生成）
+   フィルタバー構築（設定から select を生成）
    ===================================================== */
-function buildHistoryFields() {
-  $('historyFields').innerHTML = HISTORY_FIELDS.map(f => `
-    <div class="field">
-      <label>${escapeHtml(f.label)}</label>
-      <div class="suggest-wrap">
-        <input type="text" id="${f.key}" placeholder="${escapeHtml(f.placeholder || '')}" autocomplete="off">
-        <div class="suggest-box" id="${f.key}Suggest"></div>
-      </div>
-    </div>`).join('');
-}
-
 function buildFilterBar() {
   const selects = [{ id: 'filterDay', label: '日にち' },
                    ...FILTER_FIELDS.map(f => ({ id: filterIdOf(f.key), label: f.label }))];
-  $('filterBar').innerHTML =
-    selects.map(s => `<select id="${s.id}"><option value="">${escapeHtml(s.label)}：全て</option></select>`).join('') +
-    `<button id="filterClear" title="フィルタ解除">✕</button>`;
+  let html = selects.map(s =>
+    `<select id="${s.id}"><option value="">${escapeHtml(s.label)}：全て</option></select>`).join('');
+  // 清算状況フィルタ（履歴ではないので固定の選択肢）
+  html += `<select id="filterSettled">
+      <option value="">清算：全て</option>
+      <option value="unpaid">未清算</option>
+      <option value="paid">清算済</option>
+    </select>`;
+  html += `<button id="filterClear" title="フィルタ解除">✕</button>`;
+  $('filterBar').innerHTML = html;
 }
 
 /* =====================================================
@@ -525,7 +603,7 @@ function setupSuggest(field) {
     const item = e.target.closest('.suggest-item');
     if (!item) return;
     e.preventDefault();               // blur より先に処理を確定させる
-    // 候補タップでドロップダウンが消えた直後、同じ位置にある「追加する」へ
+    // 候補タップでドロップダウンが消えた直後、同じ位置にある要素へ
     // タップが貫通する（ゴーストクリック）のを防ぐ
     ignoreAddUntil = Date.now() + GHOST_GUARD_MS;
     const v = item.dataset.v;
@@ -563,6 +641,13 @@ function onAmountInput(e) {
   e.target.value = digits ? Number(digits).toLocaleString('ja-JP') : '';
 }
 
+// 支払済チェックに応じて清算日欄を出し入れ（チェック時は既定で今日）
+function syncSettledUI() {
+  const on = $('settled').checked;
+  $('settledDateWrap').style.display = on ? 'block' : 'none';
+  if (on && !$('settledDate').value) $('settledDate').value = todayStr();
+}
+
 function readForm() {
   const rec = {
     id: editingId ?? Date.now(),
@@ -570,13 +655,18 @@ function readForm() {
     amount: Number($('amount').value.replace(/,/g, ''))
   };
   for (const f of HISTORY_FIELDS) rec[f.key] = $(f.key).value.trim();
+  rec.settled = $('settled').checked;
+  rec.settledDate = rec.settled ? ($('settledDate').value || todayStr()) : '';
   return rec;
 }
 
 function fillForm(rec) {
   $('date').value = rec.date;
   $('amount').value = rec.amount.toLocaleString('ja-JP');
-  for (const f of HISTORY_FIELDS) $(f.key).value = rec[f.key];
+  for (const f of HISTORY_FIELDS) $(f.key).value = rec[f.key] || '';
+  $('settled').checked = !!rec.settled;
+  $('settledDate').value = rec.settledDate || '';
+  syncSettledUI();
 }
 
 function resetForm() {
@@ -584,6 +674,9 @@ function resetForm() {
   $('date').value = todayStr();
   $('amount').value = '';
   for (const f of HISTORY_FIELDS) $(f.key).value = '';
+  $('settled').checked = false;
+  $('settledDate').value = '';
+  syncSettledUI();
   $('addBtn').textContent = '追加する';
   $('cancelBtn').style.display = 'none';
 }
@@ -643,6 +736,7 @@ function fillFilter(sel, values, labelAll, labelOf) {
 function updateFilters(monthRecs) {
   fillFilter($('filterDay'), [...new Set(monthRecs.map(r => r.date))], '日にち：全て', dayLabel);
   for (const f of FILTER_FIELDS) fillFilter($(filterIdOf(f.key)), history[f.key], `${f.label}：全て`);
+  // filterSettled は固定選択肢なので詰め替え不要。active表示だけ更新
   for (const id of FILTER_IDS) $(id).classList.toggle('active', $(id).value !== '');
 }
 
@@ -652,8 +746,11 @@ function applyFilters(monthRecs) {
   if (day) shown = shown.filter(r => r.date === day);
   for (const f of FILTER_FIELDS) {
     const v = $(filterIdOf(f.key)).value;
-    if (v) shown = shown.filter(r => r[f.key] === v);
+    if (v) shown = shown.filter(r => (r[f.key] || '') === v);
   }
+  const st = $('filterSettled').value;
+  if (st === 'unpaid') shown = shown.filter(r => r.payee && !r.settled);   // 立替かつ未清算
+  if (st === 'paid')   shown = shown.filter(r => r.settled);
   return shown;
 }
 
@@ -666,14 +763,23 @@ function clearFilters() {
    描画
    ===================================================== */
 function recordCard(r) {
-  const metaParts = [];
-  if (r.wallet) metaParts.push(`<span class="wallet-tag">${escapeHtml(r.wallet)}</span>`);
-  if (r.memo) metaParts.push(escapeHtml(r.memo));
+  const wallet = r.wallet || '', payee = r.payee || '';
+  const meta = [];
+  if (wallet || payee) {
+    const txt = payee ? `${escapeHtml(wallet)} → ${escapeHtml(payee)}` : escapeHtml(wallet);
+    meta.push(`<span class="wallet-tag">${txt}</span>`);
+  }
+  if (r.settled) {
+    meta.push(`<span class="settle-tag paid">✓ ${r.settledDate ? shortDate(r.settledDate) : '清算済'}</span>`);
+  } else if (payee) {
+    meta.push(`<span class="settle-tag unpaid">未清算</span>`);
+  }
+  if (r.memo) meta.push(escapeHtml(r.memo));
   return `
     <div class="card" data-id="${r.id}">
       <div class="info">
         <div class="breakdown">${escapeHtml(r.breakdown) || '（内訳なし）'}</div>
-        ${metaParts.length ? `<div class="meta">${metaParts.join(' ')}</div>` : ''}
+        ${meta.length ? `<div class="meta">${meta.join(' ')}</div>` : ''}
       </div>
       <div class="amt">${fmt(r.amount)}</div>
     </div>`;
@@ -727,19 +833,34 @@ function render() {
 }
 
 /* =====================================================
-   長押し / 右クリックメニュー（編集・削除）
+   長押し / 右クリックメニュー（清算・編集・削除）
    ===================================================== */
 function openMenu(id) {
   const r = records.find(r => r.id === id);
   if (!r) return;
   menuId = id;
   $('menuTarget').textContent = `${dayLabel(r.date)} ${r.breakdown || '（内訳なし）'} ${fmt(r.amount)}`;
+  // 「清算済みにする」は 未清算の立替（payeeあり・未清算）のときだけ出す
+  $('menuSettle').style.display = (r.payee && !r.settled) ? 'block' : 'none';
   $('menuOverlay').classList.add('show');
 }
 
 function closeMenu() {
   menuId = null;
   $('menuOverlay').classList.remove('show');
+}
+
+// 一覧から直接、今日の日付で清算済みにする（編集画面を開かず1タップ）
+function onMenuSettle() {
+  const r = records.find(r => r.id === menuId);
+  if (r) {
+    r.settled = true;
+    r.settledDate = todayStr();
+    saveRecords();
+    refresh();
+    toast('清算済みにしました');
+  }
+  closeMenu();
 }
 
 function onMenuEdit() {
@@ -763,7 +884,8 @@ function onMenuDelete() {
    CSV出力・取込（BOM付きUTF-8 / Excel互換）
    ===================================================== */
 function recordToRow(r) {
-  return [r.date, r.amount, ...HISTORY_FIELDS.map(f => r[f.key])];
+  return [r.date, r.amount, ...HISTORY_FIELDS.map(f => r[f.key] || ''),
+          r.settled ? '済' : '', r.settledDate || ''];
 }
 
 function rowToRecord(row, id) {
@@ -772,11 +894,15 @@ function rowToRecord(row, id) {
   if (!date || isNaN(amount)) return null;
   const rec = { id, date, amount };
   HISTORY_FIELDS.forEach((f, i) => rec[f.key] = (row[2 + i] || '').trim());
+  const n = HISTORY_FIELDS.length;
+  const settledRaw = (row[2 + n] || '').trim();
+  rec.settled = /^(済|1|true|yes|✓|レ)/i.test(settledRaw);
+  rec.settledDate = rec.settled ? (normalizeDate(row[3 + n]) || '') : '';
   return rec;
 }
 
 // 重複判定キー（取込時に同一記録の二重登録を防ぐ）
-const dupKey = r => `${r.date}|${r.amount}|${r.breakdown}`;
+const dupKey = r => `${r.date}|${r.amount}|${r.breakdown || ''}|${r.payee || ''}`;
 
 function exportCsv() {
   if (!records.length) { toast('記録がありません'); return; }
@@ -864,6 +990,7 @@ function parseCsv(text) {
    ===================================================== */
 function wireEvents() {
   $('amount').addEventListener('input', onAmountInput);
+  $('settled').addEventListener('change', syncSettledUI);
   $('addBtn').addEventListener('click', onAdd);
   $('cancelBtn').addEventListener('click', resetForm);
 
@@ -873,7 +1000,7 @@ function wireEvents() {
   FILTER_IDS.forEach(id => $(id).addEventListener('change', render));
   $('filterClear').addEventListener('click', clearFilters);
 
-  // 明細: 長押し600ms／右クリックで編集・削除メニュー
+  // 明細: 長押し600ms／右クリックで清算・編集・削除メニュー
   const list = $('list');
   list.addEventListener('pointerdown', e => {
     const card = e.target.closest('.card');
@@ -889,6 +1016,7 @@ function wireEvents() {
     openMenu(Number(card.dataset.id));
   });
 
+  $('menuSettle').addEventListener('click', onMenuSettle);
   $('menuEdit').addEventListener('click', onMenuEdit);
   $('menuDelete').addEventListener('click', onMenuDelete);
   $('menuClose').addEventListener('click', closeMenu);
@@ -903,7 +1031,6 @@ function wireEvents() {
    初期化
    ===================================================== */
 function init() {
-  buildHistoryFields();
   buildFilterBar();
   loadAll();
   HISTORY_FIELDS.forEach(setupSuggest);
