@@ -377,7 +377,7 @@
     </div>
   </div>
   <div class="field">
-    <label>お財布 → 立替相手</label>
+    <label>支払 → 立替</label>
     <div class="transfer-row">
       <div class="suggest-wrap">
         <input type="text" id="wallet" placeholder="お財布" autocomplete="off">
@@ -385,14 +385,14 @@
       </div>
       <span class="arrow">→</span>
       <div class="suggest-wrap">
-        <input type="text" id="payee" placeholder="立替相手（任意）" autocomplete="off">
+        <input type="text" id="payee" placeholder="お財布（任意）" autocomplete="off">
         <div class="suggest-box" id="payeeSuggest"></div>
       </div>
     </div>
   </div>
   <div class="field settle-field">
     <label class="check-label">
-      <input type="checkbox" id="settled"> 支払済（清算した）
+      <input type="checkbox" id="settled"> 清算済
     </label>
     <div id="settledDateWrap" style="display:none">
       <input type="date" id="settledDate">
@@ -445,7 +445,7 @@
 /* =====================================================
    設定 — 仕様の単一の情報源。項目の追加・変更はまずここ
    ===================================================== */
-const APP_VERSION = '1.3.0';   // 更新時は sw.js の CACHE も必ず上げる
+const APP_VERSION = '1.3.1';   // 更新時は sw.js の CACHE も必ず上げる
 
 const STORAGE_KEYS = {
   records: 'shopping_memo_records',        // 記録本体
